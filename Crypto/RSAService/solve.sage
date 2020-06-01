@@ -1,0 +1,76 @@
+#!/usr/bin/env sage
+
+source = 6453808645099481754496697330465
+target = 1067267517149537754067764973523953846272152062302519819783794287703407438588906504446261381994947724460868747474504670998110717117637385810239484973100105019299532993569
+
+def find_smooth(root, bits, smooth_bits):
+	while True:
+		prod = 1
+		while prod.nbits() < bits:
+			prod *= random_prime(2^smooth_bits - 1)
+		
+		if not (prod + 1).is_prime():
+			continue
+
+		F = IntegerModRing(prod + 1)
+		if not F(root).is_primitive_root():
+			continue
+
+		return prod + 1
+
+# Found new prime: 2420224477575443310440328600179722291750879519029823444741925489154763420873899905519
+# Found new prime: 13216592923579023259927510014086218724494026737677502433260890692696949639863148741337483
+# Found new prime: 13652460225238158445913555436505678607368617241848360437498299123891545267017196759887
+#
+# p = 13652460225238158445913555436505678607368617241848360437498299123891545267017196759887
+# q = 2420224477575443310440328600179722291750879519029823444741925489154763420873899905519
+# d = 431257864379705271812229118094445987736572813043541086140552818143042259972142423891498864009988912357327198283860107056765659767851094022163875373849501016625699779847
+# e = 15508707214745388893076447088375680738501639431745811447384793859429227099470407957508334259147088339015904755390911026657526806607992020563092472132775474941780845785823
+# n = p*q
+# ./solve.sage  6.59s user 0.09s system 98% cpu 6.776 total
+
+p, q, e, d = 0, 0, 0, 0
+primes = []
+while True:
+	p = find_smooth(source, target.nbits() // 2 + 1, 16)	
+	if p in primes:
+		continue
+	
+	print(f'Found new prime: {p}')
+	if len(primes) == 0:
+		primes.append(p)
+		continue
+
+	# Check all pairs
+	for q in primes:
+		if gcd(p - 1, q - 1) > 2:
+			continue
+		
+		n = p*q
+		phi = (p - 1) * (q - 1)
+		if target > n:
+			continue
+		
+		F_p = IntegerModRing(p)
+		F_q = IntegerModRing(q)
+		d_p = discrete_log(F_p(target), F_p(source))
+		d_q = discrete_log(F_q(target), F_q(source))
+
+		try:
+			d = CRT([d_p, d_q], [p - 1, q - 1])
+		except:
+			continue
+
+		if gcd(d, phi) > 1:
+			continue
+		
+		e = inverse_mod(d, phi)
+		break
+	
+	if e != 0:
+		break
+
+	primes.append(p)
+
+
+print(f'\np = {p}\nq = {q}\nd = {d}\ne = {e}\nn = p*q')
